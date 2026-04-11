@@ -79,12 +79,14 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
             """
         
         models_to_try = [
-            # Prioridad 1: Gemini 2.0 Flash (El estándar actual con cuota alta gratuita)
+            # Prioridad 1: 500 gratuitas de Gemini 3.1 Flash Lite Preview
+            'gemini-3.1-flash-lite-preview',
+            # Prioridad 2: 1500 gratuitas de Gemini 2.0 Flash
             'gemini-2.0-flash',
-            # Prioridad 2: Gemini 1.5 Flash (El anterior de alta capacidad gratuita)
-            'gemini-1.5-flash',
-            # Prioridad 3: Gemini 2.5 Flash (Experimental, cuota limitada de 20 por día, para emergencias)
-            'gemini-2.5-flash'
+            # Prioridad 3: 1500 gratuitas de Gemini 2.0 Flash Lite
+            'gemini-2.0-flash-lite',
+            # Prioridad 4: Respaldo extra
+            'gemini-flash-latest'
         ]
         
         last_error = None

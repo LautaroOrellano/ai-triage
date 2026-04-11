@@ -37,7 +37,6 @@ runs:
       run: |
         echo "Starting bot execution in $PWD..."
         cd ${{ github.action_path }}/src
-        python -u list_models.py
         python -u bot.py
       shell: bash
       env:

@@ -78,14 +78,32 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
             Response:
             """
         
-        # Call the API using the new Client structure alongside gemini-2.5-flash
-        response = client.models.generate_content(
-            model='gemini-2.5-flash',
-            contents=prompt
-        )
-        icon = "💬" if is_direct else "🤖"
-        title_block = "" if is_direct else f"**AI Analysis ({bot_name})**:\n"
-        return f"\n{icon} {title_block}{response.text}\n"
+        models_to_try = [
+            # Priorizamos el que te da la mayor cantidad de cuota gratis (500 por día)
+            'gemini-3.1-flash-lite',
+            # Si falla, vamos cayendo en los demás que te dan 20 cada uno
+            'gemini-3-flash',
+            'gemini-2.5-flash',
+            'gemini-2.5-flash-lite'
+        ]
+        
+        last_error = None
+        for model_name in models_to_try:
+            try:
+                # Call the API using the new Client structure
+                response = client.models.generate_content(
+                    model=model_name,
+                    contents=prompt
+                )
+                icon = "💬" if is_direct else "🤖"
+                title_block = "" if is_direct else f"**AI Analysis ({bot_name})**:\n"
+                return f"\n{icon} {title_block}{response.text}\n"
+            except Exception as e:
+                last_error = e
+                continue
+                
+        # If all models failed, raise the last error to be caught by the outer block
+        raise last_error
 
     except Exception as e:
         error_msg = "No pude generar una respuesta" if lang_code == "es" else "Could not generate a response"

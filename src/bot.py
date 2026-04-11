@@ -57,23 +57,39 @@ def process_issue(issue_obj, trigger_text=None):
     
     # Text to check for mentions (can be the comment body or issue body)
     text_to_check = trigger_text if trigger_text else body
+    print(f"DEBUG_PRINT: process_issue called for #{issue_number}")
+    print(f"DEBUG_PRINT: text_to_check='{text_to_check}'")
+    print(f"DEBUG_PRINT: BOT_NAME='{BOT_NAME}'")
 
     # Trigger 1: Direct Mention (Prioritized)
     if was_mentioned(text_to_check, BOT_NAME):
+        print("DEBUG_PRINT: was_mentioned evaluated to TRUE")
         response = format_response(title, body, direct=True, user_comment=text_to_check)
+        print("DEBUG_PRINT: Generated response successfully")
         client.comment(issue_number, response)
+        print("DEBUG_PRINT: Action created comment successfully")
         client.add_label(issue_number, LABEL_NAME)
         return
 
+    print("DEBUG_PRINT: was_mentioned evaluated to FALSE. Proceeding to Trigger 2.")
+
     # Trigger 2: Delay Check
-    if client.has_label(issue_number, LABEL_NAME) or client.already_commented(issue_number):
+    if client.has_label(issue_number, LABEL_NAME):
+        print("DEBUG_PRINT: Issue already has label. Exiting.")
+        return
+        
+    if client.already_commented(issue_number):
+        print("DEBUG_PRINT: Bot already commented. Exiting.")
         return
 
     comments = client.get_comments(issue_number)
     if should_respond(str(issue_obj.created_at), comments, DELAY):
+        print("DEBUG_PRINT: Wait time complete. Responding automatically.")
         response = format_response(title, body)
         client.comment(issue_number, response)
         client.add_label(issue_number, LABEL_NAME)
+    else:
+        print("DEBUG_PRINT: Wait time not complete. Exiting gracefully.")
 
 def format_response(title, body, direct=False, user_comment=None):
     lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
@@ -117,9 +133,11 @@ def process_discussion(discussion_node, trigger_text=None):
     created_at = discussion_node.get("createdAt", "")
     
     text_to_check = trigger_text if trigger_text else body
+    print(f"DEBUG_PRINT: Analyzing discussion. Trigger text: {text_to_check}")
 
     # Mention trigger
     if was_mentioned(text_to_check, BOT_NAME):
+        print(f"DEBUG_PRINT: MENTION OK!")
         response = format_response(title, body, direct=True, user_comment=text_to_check)
         client.comment_discussion(node_id, response)
         client.add_label_to_node(node_id, LABEL_NAME)
@@ -128,23 +146,31 @@ def process_discussion(discussion_node, trigger_text=None):
     # Delay Check for discussions
     labels = [l["name"] for l in discussion_node.get("labels", {}).get("nodes", [])]
     if LABEL_NAME in labels:
+        print(f"DEBUG_PRINT: DISCARDED by label")
         return
         
     bot_user = client.get_bot_username()
     comments = [c for c in discussion_node.get("comments", {}).get("nodes", [])]
     already_commented = any(c.get("author", {}).get("login") == bot_user for c in comments)
     if already_commented:
+        print(f"DEBUG_PRINT: DISCARDED by already commented")
         return
 
+    print(f"DEBUG_PRINT: Checking schedule rule.")
     if should_respond(created_at, comments, DELAY):
+        print(f"DEBUG_PRINT: Schedule met. Responding.")
         response = format_response(title, body)
         client.comment_discussion(node_id, response)
         client.add_label_to_node(node_id, LABEL_NAME)
 
 def main():
+    print("DEBUG_PRINT: --- BASH BOOTSTRAP TO PYTHON REACHED OK ---")
     event = load_event()
+    print(f"DEBUG_PRINT: EVENT_NAME IS = {EVENT_NAME}")
+    print(f"DEBUG_PRINT: BOT_NAME VAR IS = {BOT_NAME}")
 
     if EVENT_NAME == "issues" or EVENT_NAME == "issue_comment":
+        print(f"DEBUG_PRINT: Event parsed as Issue payload.")
         if "issue" in event:
             issue_number = event["issue"]["number"]
             issue_obj = client.repo.get_issue(issue_number)
@@ -153,9 +179,11 @@ def main():
             if "comment" in event:
                 trigger_text = event["comment"]["body"]
             
+            print(f"DEBUG_PRINT: Pushing to process_issue(). trigger_text={trigger_text}")
             process_issue(issue_obj, trigger_text=trigger_text)
             
     elif EVENT_NAME == "discussion" or EVENT_NAME == "discussion_comment":
+        print(f"DEBUG_PRINT: Event parsed as Discussion payload.")
         if "discussion" in event:
             discussion = event["discussion"]
             
@@ -173,9 +201,11 @@ def main():
                 # as the GraphQL query, but for mentions this won't matter because we just comment right away.
                 # Delay checks run via schedule anyway!
             }
+            print(f"DEBUG_PRINT: Pushing to process_discussion(). trigger_text={trigger_text}")
             process_discussion(discussion_node, trigger_text=trigger_text)
     
     elif EVENT_NAME == "schedule" or not EVENT_NAME:
+        print(f"DEBUG_PRINT: Event parsed as Cron Schedule.")
         # Sweep issues
         for issue in client.get_open_issues():
             process_issue(issue)

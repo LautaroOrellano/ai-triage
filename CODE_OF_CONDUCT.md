@@ -70,7 +70,7 @@ This Code of Conduct applies to all project spaces, including:
 
 If you experience or witness unacceptable behavior, please report it to:
 
-**[orellanolautaro@outlook.com]**
+**orellanolautaro@outlook.com**
 
 All reports will be handled confidentially.
 

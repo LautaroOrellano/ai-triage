@@ -32,7 +32,11 @@ class GitHubClient:
         return list(issue.get_comments())
 
     def get_bot_username(self):
-        return self.gh.get_user().login
+        try:
+            return self.gh.get_user().login
+        except:
+            # Fallback for GITHUB_TOKEN which can't access /user
+            return "github-actions[bot]"
 
     def already_commented(self, issue_number):
         bot_user = self.get_bot_username()

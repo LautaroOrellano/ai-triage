@@ -19,32 +19,29 @@ def load_event():
     with open(EVENT_PATH, "r") as f:
         return json.load(f)
 
-def process_issue(issue_obj):
+def process_issue(issue_obj, trigger_text=None):
     """Core logic to decide if the bot should reply to a specific issue."""
     issue_number = issue_obj.number
     body = issue_obj.body or ""
     title = issue_obj.title
     
-    # 1. First check: Label (Fast)
-    if client.has_label(issue_number, LABEL_NAME):
-        return
+    # Text to check for mentions (can be the comment body or issue body)
+    text_to_check = trigger_text if trigger_text else body
 
-    # 2. Second check: Actual comments (Robust - handles deleted labels)
-    if client.already_commented(issue_number):
-        # We restore the label if it was missing but bot had already commented
-        client.add_label(issue_number, LABEL_NAME)
-        return
-
-    comments = client.get_comments(issue_number)
-    
-    # Trigger 1: Direct Mention
-    if was_mentioned(body, BOT_NAME):
+    # Trigger 1: Direct Mention (Prioritized)
+    # If mentioned, we respond regardless of the label (to allow multiple interactions)
+    if was_mentioned(text_to_check, BOT_NAME):
         response = format_response(title, body, direct=True)
         client.comment(issue_number, response)
         client.add_label(issue_number, LABEL_NAME)
         return
 
-    # Trigger 2: Delay Check (Only if no one replied)
+    # Trigger 2: Delay Check (Only if no one replied and not already responded)
+    # Check if already responded to avoid spam in abandoned issues
+    if client.has_label(issue_number, LABEL_NAME) or client.already_commented(issue_number):
+        return
+
+    comments = client.get_comments(issue_number)
     if should_respond(str(issue_obj.created_at), comments, DELAY):
         response = format_response(title, body)
         client.comment(issue_number, response)
@@ -80,10 +77,15 @@ def main():
     # Case 1: Event-driven (e.g., issue opened or commented)
     if EVENT_NAME == "issues" or EVENT_NAME == "issue_comment":
         if "issue" in event:
-            # We fetch the full issue object to have consistency
             issue_number = event["issue"]["number"]
             issue_obj = client.repo.get_issue(issue_number)
-            process_issue(issue_obj)
+            
+            # If it's a comment, we check the comment body for mentions
+            trigger_text = None
+            if "comment" in event:
+                trigger_text = event["comment"]["body"]
+            
+            process_issue(issue_obj, trigger_text=trigger_text)
     
     # Case 2: Scheduled run (Sweep through open issues)
     elif EVENT_NAME == "schedule" or not EVENT_NAME:

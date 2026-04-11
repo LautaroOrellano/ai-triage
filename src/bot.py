@@ -109,6 +109,38 @@ def format_response(title, body, direct=False, user_comment=None):
         
     return msg
 
+def process_discussion(discussion_node, trigger_text=None):
+    """Core logic to decide if the bot should reply to a specific discussion via GraphQL."""
+    node_id = discussion_node["id"]
+    title = discussion_node.get("title", "")
+    body = discussion_node.get("body", "")
+    created_at = discussion_node.get("createdAt", "")
+    
+    text_to_check = trigger_text if trigger_text else body
+
+    # Mention trigger
+    if was_mentioned(text_to_check, BOT_NAME):
+        response = format_response(title, body, direct=True, user_comment=text_to_check)
+        client.comment_discussion(node_id, response)
+        client.add_label_to_node(node_id, LABEL_NAME)
+        return
+
+    # Delay Check for discussions
+    labels = [l["name"] for l in discussion_node.get("labels", {}).get("nodes", [])]
+    if LABEL_NAME in labels:
+        return
+        
+    bot_user = client.get_bot_username()
+    comments = [c for c in discussion_node.get("comments", {}).get("nodes", [])]
+    already_commented = any(c.get("author", {}).get("login") == bot_user for c in comments)
+    if already_commented:
+        return
+
+    if should_respond(created_at, comments, DELAY):
+        response = format_response(title, body)
+        client.comment_discussion(node_id, response)
+        client.add_label_to_node(node_id, LABEL_NAME)
+
 def main():
     event = load_event()
 
@@ -122,11 +154,34 @@ def main():
                 trigger_text = event["comment"]["body"]
             
             process_issue(issue_obj, trigger_text=trigger_text)
+            
+    elif EVENT_NAME == "discussion" or EVENT_NAME == "discussion_comment":
+        if "discussion" in event:
+            discussion = event["discussion"]
+            
+            trigger_text = None
+            if "comment" in event:
+                trigger_text = event["comment"]["body"]
+                
+            # Quick format matching the GraphQL node schema
+            discussion_node = {
+                "id": discussion["node_id"],
+                "title": discussion.get("title", ""),
+                "body": discussion.get("body", ""),
+                "createdAt": discussion.get("created_at", ""),
+                # In a webhook, comments and labels are not usually fully provided in the same structure 
+                # as the GraphQL query, but for mentions this won't matter because we just comment right away.
+                # Delay checks run via schedule anyway!
+            }
+            process_discussion(discussion_node, trigger_text=trigger_text)
     
     elif EVENT_NAME == "schedule" or not EVENT_NAME:
-        issues = client.get_open_issues()
-        for issue in issues:
+        # Sweep issues
+        for issue in client.get_open_issues():
             process_issue(issue)
+        # Sweep discussions
+        for discussion_node in client.get_open_discussions():
+            process_discussion(discussion_node)
 
 if __name__ == "__main__":
     main()

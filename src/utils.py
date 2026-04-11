@@ -28,10 +28,10 @@ def check_missing_info(issue_body):
     
     # Check for code blocks or logs
     if "```" not in issue_body:
-        missing.append("code blocks or logs")
+        missing.append("logs")
     
     # Check for minimal length
     if len(issue_body) < 50:
-        missing.append("detailed explanation")
+        missing.append("details")
         
     return missing

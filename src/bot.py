@@ -21,7 +21,12 @@ LOCALIZATION = {
         "stale": "It looks like no one has responded yet ⏳",
         "tips_header": "💡 **Tips to get faster help:**",
         "missing_item": "- Please provide more {item}.",
-        "guidance": "💬 Mention me with `@{bot_name}` if you need more direct guidance."
+        "guidance": "💬 Mention me with `@{bot_name}` if you need more direct guidance.",
+        "items": {
+            "logs": "code blocks or logs",
+            "details": "detailed explanation",
+            "description": "description of the issue"
+        }
     },
     "es": {
         "welcome": "👋 ¡Hola! Soy **{bot_name}**",
@@ -29,7 +34,12 @@ LOCALIZATION = {
         "stale": "Parece que nadie ha respondido aún ⏳",
         "tips_header": "💡 **Consejos para obtener ayuda más rápido:**",
         "missing_item": "- Por favor, proporciona más {item}.",
-        "guidance": "💬 Mencióname con `@{bot_name}` si necesitas ayuda más específica."
+        "guidance": "💬 Mencióname con `@{bot_name}` si necesitas ayuda más específica.",
+        "items": {
+            "logs": "bloques de código o registros (logs)",
+            "details": "explicación detallada",
+            "description": "descripción del problema"
+        }
     }
 }
 
@@ -81,8 +91,9 @@ def format_response(title, body, direct=False):
 
     if missing:
         msg += strings["tips_header"] + "\n"
-        for item in missing:
-            msg += strings["missing_item"].format(item=item) + "\n"
+        for item_key in missing:
+            localized_item = strings["items"].get(item_key, item_key)
+            msg += strings["missing_item"].format(item=localized_item) + "\n"
         msg += "\n"
 
     if ai_resp:

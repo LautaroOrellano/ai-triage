@@ -35,7 +35,7 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
     try:
         # Configure Gemini
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         
         language_name = "Spanish" if lang_code == "es" else "English"
         

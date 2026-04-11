@@ -21,6 +21,11 @@ inputs:
     description: "Optional: API key for AI-powered responses"
     required: false
 
+  language:
+    description: "Default language for bot responses (e.g. 'en', 'es')"
+    required: false
+    default: "en"
+
 runs:
   using: "composite"
   steps:
@@ -38,6 +43,7 @@ runs:
         DELAY_MINUTES: ${{ inputs.delay-minutes }}
         BOT_NAME: ${{ inputs.bot-name }}
         AI_API_KEY: ${{ inputs.ai-api-key }}
+        LANGUAGE: ${{ inputs.language }}
         GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}

@@ -9,9 +9,29 @@ DELAY = int(os.getenv("DELAY_MINUTES", "30"))
 BOT_NAME = os.getenv("BOT_NAME", "helperbot")
 EVENT_PATH = os.getenv("GITHUB_EVENT_PATH")
 EVENT_NAME = os.getenv("GITHUB_EVENT_NAME")
+LANGUAGE = os.getenv("LANGUAGE", "en").lower()
 LABEL_NAME = "bot-responded"
 
 client = GitHubClient(TOKEN)
+
+LOCALIZATION = {
+    "en": {
+        "welcome": "👋 Hi! I'm **{bot_name}**",
+        "mentioned": "You mentioned me! I'm here to help 🚀",
+        "stale": "It looks like no one has responded yet ⏳",
+        "tips_header": "💡 **Tips to get faster help:**",
+        "missing_item": "- Please provide more {item}.",
+        "guidance": "💬 Mention me with `@{bot_name}` if you need more direct guidance."
+    },
+    "es": {
+        "welcome": "👋 ¡Hola! Soy **{bot_name}**",
+        "mentioned": "¡Me has mencionado! Estoy aquí para ayudarte 🚀",
+        "stale": "Parece que nadie ha respondido aún ⏳",
+        "tips_header": "💡 **Consejos para obtener ayuda más rápido:**",
+        "missing_item": "- Por favor, proporciona más {item}.",
+        "guidance": "💬 Mencióname con `@{bot_name}` si necesitas ayuda más específica."
+    }
+}
 
 def load_event():
     if not EVENT_PATH or not os.path.exists(EVENT_PATH):
@@ -29,15 +49,13 @@ def process_issue(issue_obj, trigger_text=None):
     text_to_check = trigger_text if trigger_text else body
 
     # Trigger 1: Direct Mention (Prioritized)
-    # If mentioned, we respond regardless of the label (to allow multiple interactions)
     if was_mentioned(text_to_check, BOT_NAME):
         response = format_response(title, body, direct=True)
         client.comment(issue_number, response)
         client.add_label(issue_number, LABEL_NAME)
         return
 
-    # Trigger 2: Delay Check (Only if no one replied and not already responded)
-    # Check if already responded to avoid spam in abandoned issues
+    # Trigger 2: Delay Check
     if client.has_label(issue_number, LABEL_NAME) or client.already_commented(issue_number):
         return
 
@@ -48,49 +66,49 @@ def process_issue(issue_obj, trigger_text=None):
         client.add_label(issue_number, LABEL_NAME)
 
 def format_response(title, body, direct=False):
-    missing = check_missing_info(body)
-    ai_resp = generate_ai_response(title, body, BOT_NAME)
+    lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
+    strings = LOCALIZATION[lang_code]
     
-    msg = f"👋 Hi! I'm **{BOT_NAME}**\n\n"
+    missing = check_missing_info(body)
+    ai_resp = generate_ai_response(title, body, BOT_NAME, lang_code)
+    
+    msg = strings["welcome"].format(bot_name=BOT_NAME) + "\n\n"
     
     if direct:
-        msg += "You mentioned me! I'm here to help 🚀\n\n"
-    elif not direct:
-        msg += "It looks like no one has responded yet ⏳\n\n"
+        msg += strings["mentioned"] + "\n\n"
+    else:
+        msg += strings["stale"] + "\n\n"
 
     if missing:
-        msg += "💡 **Tips to get faster help:**\n"
+        msg += strings["tips_header"] + "\n"
         for item in missing:
-            msg += f"- Please provide more {item}.\n"
+            msg += strings["missing_item"].format(item=item) + "\n"
         msg += "\n"
 
     if ai_resp:
         msg += f"{ai_resp}\n"
     else:
-        msg += "💬 Mention me with `@{BOT_NAME}` if you need more direct guidance.\n"
+        msg += strings["guidance"].format(bot_name=BOT_NAME) + "\n"
         
     return msg
 
 def main():
     event = load_event()
 
-    # Case 1: Event-driven (e.g., issue opened or commented)
     if EVENT_NAME == "issues" or EVENT_NAME == "issue_comment":
         if "issue" in event:
             issue_number = event["issue"]["number"]
             issue_obj = client.repo.get_issue(issue_number)
             
-            # If it's a comment, we check the comment body for mentions
             trigger_text = None
             if "comment" in event:
                 trigger_text = event["comment"]["body"]
             
             process_issue(issue_obj, trigger_text=trigger_text)
     
-    # Case 2: Scheduled run (Sweep through open issues)
     elif EVENT_NAME == "schedule" or not EVENT_NAME:
-        print(f"Running sweep for abandoned issues (delay: {DELAY}m)...")
-        for issue in client.get_open_issues():
+        issues = client.get_open_issues()
+        for issue in issues:
             process_issue(issue)
 
 if __name__ == "__main__":

@@ -54,9 +54,9 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
         Response:
         """
         
-        # Call the API using the new Client structure alongside gemini-1.5-flash
+        # Call the API using the new Client structure alongside gemini-2.5-flash
         response = client.models.generate_content(
-            model='gemini-1.5-flash',
+            model='gemini-2.5-flash',
             contents=prompt
         )
         return f"\n🤖 **AI Analysis ({bot_name})**:\n{response.text}\n"

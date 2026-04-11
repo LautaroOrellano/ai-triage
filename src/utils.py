@@ -1,15 +1,42 @@
 from datetime import datetime, timezone
 
 def should_respond(created_at_str, comments, delay_minutes):
-    created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
     now = datetime.now(timezone.utc)
-
-    diff = (now - created_at).total_seconds() / 60
-
-    if diff < delay_minutes:
+    
+    # REGLA 2: "solo por un comentario nuevo, no por el issue principal"
+    # Si no hay comentarios, ignorar el issue por completo.
+    if len(comments) == 0:
+        return False
+        
+    # Obtener el último comentario creado
+    # PyGithub comments ya vienen ordenados cronológicamente, pero aseguramos
+    last_comment = comments[-1]
+    
+    # Extraer la fecha del comentario, que para REST/GraphQL puede venir como string o como objeto datetime 
+    # (PyGithub usa objetos datetime, GraphQL usamos strings)
+    try:
+        if isinstance(last_comment, dict):
+            last_created = last_comment.get("createdAt")
+            if not last_created: return False
+            last_time = datetime.fromisoformat(last_created.replace("Z", "+00:00"))
+        else:
+            last_time = last_comment.created_at
+            if last_time.tzinfo is None:
+                last_time = last_time.replace(tzinfo=timezone.utc)
+    except:
         return False
 
-    return len(comments) == 0
+    diff = (now - last_time).total_seconds() / 60
+
+    # Retraso (ej: 60 minutos)
+    if diff < delay_minutes:
+        return False
+        
+    # REGLA FANTASMA: Ignorar el comentario si tiene más de 7 días (para no reanimar zombies)
+    if diff > 10080:
+        return False
+
+    return True
 
 
 def was_mentioned(text, bot_name):

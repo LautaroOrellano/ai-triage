@@ -102,9 +102,16 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
                 last_error = e
                 continue
                 
-        # If all models failed, raise the last error to be caught by the outer block
-        raise last_error
+        # Si llegó aquí es porque falló todo
+        if not is_direct:
+            # En sweep (cron), si falla la IA, mejor abortar silenciosamente para no spamear errores a todos los issues viejos
+            return None
+            
+        error_msg = "No pude generar una respuesta" if lang_code == "es" else "Could not generate a response"
+        return f"\n⚠️ **AI Error**: {error_msg}. ({str(last_error)})\n"
 
     except Exception as e:
+        if not is_direct:
+            return None
         error_msg = "No pude generar una respuesta" if lang_code == "es" else "Could not generate a response"
         return f"\n⚠️ **AI Error**: {error_msg}. ({str(e)})\n"

@@ -1,7 +1,7 @@
 import os
 from google import genai
 
-def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en"):
+def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en", user_comment=None, is_direct=False):
     """
     Generates a response using Google Gemini AI if the API key is available.
     """
@@ -10,6 +10,8 @@ def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en"):
     # Simple fallback translation for the mock response
     if not api_key:
         if lang_code == "es":
+            if is_direct:
+                return f"🤖 **Asistente**: He leído tu comentario. Pero sin `AI_API_KEY` configurada, no puedo responder preguntas complejas."
             return f"""
 🤖 **Análisis de Asistente**:
 He analizado el título y parece que tu problema trata sobre: *"{issue_title}"*.
@@ -21,6 +23,8 @@ Como todavía no has configurado una `AI_API_KEY`, no puedo darte una solución 
 _(Configura el secreto `AI_API_KEY` con una key de Google Gemini para obtener respuestas inteligentes reales)_
 """
         else:
+            if is_direct:
+                return f"🤖 **Assistant**: I've read your comment. But without an `AI_API_KEY` configured, I cannot answer complex questions."
             return f"""
 🤖 **Assistant Analysis**:
 I've analyzed the title and it seems your problem is about: *"{issue_title}"*.
@@ -38,28 +42,50 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
         
         language_name = "Spanish" if lang_code == "es" else "English"
         
-        prompt = f"""
-        You are an open source maintainer assistant named {bot_name}.
-        Your goal is to help resolve this GitHub issue concisely and professionally.
-        
-        Issue Title: {issue_title}
-        Issue Body: {issue_body}
-        
-        Instructions:
-        1. Respond in {language_name}.
-        2. If information seems missing (like logs or code), ask for it politely.
-        3. Provide a possible cause of the problem and a suggest solution if possible.
-        4. Be brief and direct.
-        
-        Response:
-        """
+        if is_direct and user_comment:
+            prompt = f"""
+            You are an open source maintainer assistant named {bot_name}.
+            A user has asked you a specific question or mentioned you in a GitHub issue thread.
+            
+            Context of the Issue:
+            Title: {issue_title}
+            Body: {issue_body}
+            
+            User's Comment to you:
+            "{user_comment}"
+            
+            Instructions:
+            1. Respond in {language_name}.
+            2. Address the user's specific comment/question directly.
+            3. Be conversational, helpful, and concise. Don't act overly robotic.
+            
+            Response:
+            """
+        else:
+            prompt = f"""
+            You are an open source maintainer assistant named {bot_name}.
+            Your goal is to help resolve this GitHub issue concisely and professionally.
+            
+            Issue Title: {issue_title}
+            Issue Body: {issue_body}
+            
+            Instructions:
+            1. Respond in {language_name}.
+            2. If information seems missing (like logs or code), ask for it politely.
+            3. Provide a possible cause of the problem and a suggest solution if possible.
+            4. Be brief and direct.
+            
+            Response:
+            """
         
         # Call the API using the new Client structure alongside gemini-2.5-flash
         response = client.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt
         )
-        return f"\n🤖 **AI Analysis ({bot_name})**:\n{response.text}\n"
+        icon = "💬" if is_direct else "🤖"
+        title_block = "" if is_direct else f"**AI Analysis ({bot_name})**:\n"
+        return f"\n{icon} {title_block}{response.text}\n"
 
     except Exception as e:
         error_msg = "No pude generar una respuesta" if lang_code == "es" else "Could not generate a response"

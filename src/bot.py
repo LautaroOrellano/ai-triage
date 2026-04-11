@@ -60,7 +60,7 @@ def process_issue(issue_obj, trigger_text=None):
 
     # Trigger 1: Direct Mention (Prioritized)
     if was_mentioned(text_to_check, BOT_NAME):
-        response = format_response(title, body, direct=True)
+        response = format_response(title, body, direct=True, user_comment=text_to_check)
         client.comment(issue_number, response)
         client.add_label(issue_number, LABEL_NAME)
         return
@@ -75,13 +75,17 @@ def process_issue(issue_obj, trigger_text=None):
         client.comment(issue_number, response)
         client.add_label(issue_number, LABEL_NAME)
 
-def format_response(title, body, direct=False):
+def format_response(title, body, direct=False, user_comment=None):
     lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
     strings = LOCALIZATION[lang_code]
     
     missing = check_missing_info(body)
-    ai_resp = generate_ai_response(title, body, BOT_NAME, lang_code)
+    ai_resp = generate_ai_response(title, body, BOT_NAME, lang_code, user_comment, direct)
     
+    # If direct mention and AI replied correctly, skip generic boilerplate
+    if direct and ai_resp and "⚠️" not in ai_resp and "Análisis de Asistente" not in ai_resp and "Assistant Analysis" not in ai_resp:
+        return ai_resp
+        
     msg = strings["welcome"].format(bot_name=BOT_NAME) + "\n\n"
     
     if direct:
@@ -89,7 +93,8 @@ def format_response(title, body, direct=False):
     else:
         msg += strings["stale"] + "\n\n"
 
-    if missing:
+    # Only show missing info generic tips on initial sweep, not on conversational mentions
+    if missing and not direct:
         msg += strings["tips_header"] + "\n"
         for item_key in missing:
             localized_item = strings["items"].get(item_key, item_key)
@@ -99,7 +104,8 @@ def format_response(title, body, direct=False):
     if ai_resp:
         msg += f"{ai_resp}\n"
     else:
-        msg += strings["guidance"].format(bot_name=BOT_NAME) + "\n"
+        if not direct:
+            msg += strings["guidance"].format(bot_name=BOT_NAME) + "\n"
         
     return msg
 

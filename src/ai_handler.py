@@ -1,5 +1,5 @@
 import os
-import google.generativeai as genai
+from google import genai
 
 def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en"):
     """
@@ -33,9 +33,8 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
 """
     
     try:
-        # Configure Gemini
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Create the new genai Client
+        client = genai.Client(api_key=api_key)
         
         language_name = "Spanish" if lang_code == "es" else "English"
         
@@ -55,7 +54,11 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
         Response:
         """
         
-        response = model.generate_content(prompt)
+        # Call the API using the new Client structure alongside gemini-1.5-flash
+        response = client.models.generate_content(
+            model='gemini-1.5-flash',
+            contents=prompt
+        )
         return f"\n🤖 **AI Analysis ({bot_name})**:\n{response.text}\n"
 
     except Exception as e:

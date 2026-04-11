@@ -11,9 +11,7 @@ def main():
     try:
         print("DEBUG_MODELS: --- DISPONIBLES EN TU API KEY ---")
         for model in client.models.list():
-            # Only print text models to avoid spamming the log
-            if "generateContent" in model.supported_generation_methods:
-                print(f"Nombre real para el código: '{model.name}' | Muestra: {model.display_name}")
+            print(f"Nombre real para el código: '{model.name}' | Muestra: {model.display_name}")
     except Exception as e:
         print(f"DEBUG_MODELS: Error fetching models: {e}")
 

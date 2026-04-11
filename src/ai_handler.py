@@ -79,12 +79,12 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
             """
         
         models_to_try = [
-            # Priorizamos el que te da la mayor cantidad de cuota gratis (500 por día)
-            'gemini-3.1-flash-lite',
-            # Si falla, vamos cayendo en los demás que te dan 20 cada uno
-            'gemini-3-flash',
-            'gemini-2.5-flash',
-            'gemini-2.5-flash-lite'
+            # Prioridad 1: Gemini 2.0 Flash (El estándar actual con cuota alta gratuita)
+            'gemini-2.0-flash',
+            # Prioridad 2: Gemini 1.5 Flash (El anterior de alta capacidad gratuita)
+            'gemini-1.5-flash',
+            # Prioridad 3: Gemini 2.5 Flash (Experimental, cuota limitada de 20 por día, para emergencias)
+            'gemini-2.5-flash'
         ]
         
         last_error = None

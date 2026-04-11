@@ -35,8 +35,9 @@ runs:
 
     - name: Run bot
       run: |
+        echo "Starting bot execution in $PWD..."
         cd ${{ github.action_path }}/src
-        python bot.py
+        python -u bot.py
       shell: bash
       env:
         GITHUB_TOKEN: ${{ inputs.github-token }}

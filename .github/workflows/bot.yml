@@ -1,0 +1,28 @@
+name: Discussion Helper Bot Runner
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  schedule:
+    - cron: "*/10 * * * *"  # cada 10 minutos
+
+jobs:
+  run-bot:
+    runs-on: ubuntu-latest
+
+    permissions:
+      issues: write
+      contents: read
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Run bot action
+        uses: ./
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          delay-minutes: 30
+          bot-name: helperbot

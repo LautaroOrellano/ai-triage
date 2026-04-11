@@ -1,0 +1,47 @@
+name: "Discussion Helper Bot"
+description: "Auto-responds to GitHub issues with delay, mentions and smart AI filtering"
+author: "Antigravity & User"
+
+inputs:
+  github-token:
+    description: "GitHub token (needs write permissions on issues)"
+    required: true
+
+  delay-minutes:
+    description: "Minutes to wait before auto-response for abandoned issues"
+    required: false
+    default: "30"
+
+  bot-name:
+    description: "Bot trigger name (@mention)"
+    required: false
+    default: "helperbot"
+
+  ai-api-key:
+    description: "Optional: API key for AI-powered responses"
+    required: false
+
+runs:
+  using: "composite"
+  steps:
+    - name: Install dependencies
+      run: pip install -r ${{ github.action_path }}/requirements.txt
+      shell: bash
+
+    - name: Run bot
+      run: |
+        cd ${{ github.action_path }}/src
+        python bot.py
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github-token }}
+        DELAY_MINUTES: ${{ inputs.delay-minutes }}
+        BOT_NAME: ${{ inputs.bot-name }}
+        AI_API_KEY: ${{ inputs.ai-api-key }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_EVENT_NAME: ${{ github.event_name }}
+        GITHUB_EVENT_PATH: ${{ github.event_path }}
+
+branding:
+  icon: "message-square"
+  color: "blue"

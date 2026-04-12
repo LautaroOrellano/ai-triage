@@ -113,7 +113,57 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
         return f"\n⚠️ **AI Error**: {error_msg}. ({str(last_error)})\n"
 
     except Exception as e:
-        if not is_direct:
-            return None
         error_msg = "No pude generar una respuesta" if lang_code == "es" else "Could not generate a response"
         return f"\n⚠️ **AI Error**: {error_msg}. ({str(e)})\n"
+
+def generate_issue_label(title, body):
+    """
+    Analyzes an issue's title and body and returns a single category label.
+    Used for silent auto-labeling without spamming comments.
+    """
+    api_key = os.getenv("AI_API_KEY")
+    if not api_key:
+        return None
+        
+    client = genai.Client(api_key=api_key)
+    
+    prompt = f"""
+Analyze the following GitHub issue and categorize it into EXACTLY ONE of these labels:
+- bug
+- enhancement
+- question
+- help wanted
+
+Issue Title: {title}
+Issue Body: {body}
+
+Return ONLY the label name in lowercase, with no extra text, markdown, or punctuation.
+"""
+    models_to_try = [
+        'gemini-3.1-flash-lite-preview',
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-lite',
+        'gemini-flash-latest'
+    ]
+    
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.1,  # Low temperature for strict classification
+                )
+            )
+            
+            label = response.text.strip().lower()
+            valid_labels = ["bug", "enhancement", "question", "help wanted"]
+            
+            if label in valid_labels:
+                return label
+            return None
+            
+        except Exception as e:
+            continue
+            
+    return None

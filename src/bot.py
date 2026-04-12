@@ -2,7 +2,7 @@ import os
 import json
 from github_client import GitHubClient
 from utils import should_respond, was_mentioned, check_missing_info
-from ai_handler import generate_ai_response
+from ai_handler import generate_ai_response, generate_issue_label
 
 TOKEN = os.getenv("GITHUB_TOKEN")
 DELAY = int(os.getenv("DELAY_MINUTES", "30"))
@@ -158,15 +158,26 @@ def main():
     print(f"DEBUG_PRINT: EVENT_NAME IS = {EVENT_NAME}")
     print(f"DEBUG_PRINT: BOT_NAME VAR IS = {BOT_NAME}")
 
-    if EVENT_NAME == "issues" or EVENT_NAME == "issue_comment":
-        print(f"DEBUG_PRINT: Event parsed as Issue payload.")
-        if "issue" in event:
+    if EVENT_NAME == "issues":
+        print(f"DEBUG_PRINT: Event parsed as issues (opened/edited) payload.")
+        if "issue" in event and event.get("action") == "opened":
+            issue_number = event["issue"]["number"]
+            title = event["issue"].get("title", "")
+            body = event["issue"].get("body", "")
+            print(f"DEBUG_PRINT: Extrayendo etiqueta inteligente para #{issue_number}")
+            ai_label = generate_issue_label(title, body)
+            if ai_label:
+                print(f"DEBUG_PRINT: IA sugirió la etiqueta silenciosa: {ai_label}")
+                client.repo.get_issue(issue_number).add_to_labels(ai_label)
+            else:
+                print("DEBUG_PRINT: No se pudo generar etiqueta.")
+
+    elif EVENT_NAME == "issue_comment":
+        print(f"DEBUG_PRINT: Event parsed as issue_comment payload.")
+        if "issue" in event and "comment" in event:
             issue_number = event["issue"]["number"]
             issue_obj = client.repo.get_issue(issue_number)
-            
-            trigger_text = None
-            if "comment" in event:
-                trigger_text = event["comment"]["body"]
+            trigger_text = event["comment"]["body"]
             
             print(f"DEBUG_PRINT: Pushing to process_issue(). trigger_text={trigger_text}")
             process_issue(issue_obj, trigger_text=trigger_text)

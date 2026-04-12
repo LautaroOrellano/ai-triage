@@ -1,4 +1,4 @@
-name: "Discussion Helper Bot"
+name: "ai-triage"
 description: "Auto-responds to GitHub issues with delay, mentions and smart AI filtering"
 author: "Antigravity & User"
 branding:

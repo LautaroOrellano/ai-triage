@@ -159,8 +159,9 @@ Return ONLY the label name in lowercase, with no extra text, markdown, or punctu
             label = response.text.strip().lower()
             valid_labels = ["bug", "enhancement", "question", "help wanted"]
             
-            if label in valid_labels:
-                return label
+            for valid in valid_labels:
+                if valid in label:
+                    return valid
             return None
             
         except Exception as e:

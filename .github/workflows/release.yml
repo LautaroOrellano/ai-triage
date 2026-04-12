@@ -1,0 +1,31 @@
+name: Update Major Version Tag
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  update-major-tag:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  
+      
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 
+
+      - name: Update major version tag (e.g. v1)
+        run: |
+          TAG_NAME="${{ github.event.release.tag_name }}"
+          
+          MAJOR_VERSION=$(echo "$TAG_NAME" | cut -d. -f1)
+          
+          echo "Detected release: $TAG_NAME. Moving major tag $MAJOR_VERSION to this commit..."
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git tag -f "$MAJOR_VERSION" "$TAG_NAME"
+          git push -f origin "$MAJOR_VERSION"

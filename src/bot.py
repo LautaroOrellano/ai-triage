@@ -87,7 +87,7 @@ def format_response(title, body, direct=False, user_comment=None):
     missing = check_missing_info(body)
     ai_resp = generate_ai_response(title, body, BOT_NAME, lang_code, user_comment, direct)
     
-    # Si es un sweep (y no hay IA) cortamos acá para no llenar de comentarios genéricos
+    # If it is a sweep (and there is no AI), abort to avoid generic comment spam
     if not direct and not ai_resp:
         return None
         
@@ -153,37 +153,25 @@ def process_discussion(discussion_node, trigger_text=None):
             client.add_label_to_node(node_id, LABEL_NAME)
 
 def main():
-    print("DEBUG_PRINT: --- BASH BOOTSTRAP TO PYTHON REACHED OK ---")
     event = load_event()
-    print(f"DEBUG_PRINT: EVENT_NAME IS = {EVENT_NAME}")
-    print(f"DEBUG_PRINT: BOT_NAME VAR IS = {BOT_NAME}")
 
     if EVENT_NAME == "issues":
-        print(f"DEBUG_PRINT: Event parsed as issues (opened/edited) payload.")
         if "issue" in event and event.get("action") == "opened":
             issue_number = event["issue"]["number"]
             title = event["issue"].get("title", "")
             body = event["issue"].get("body", "")
-            print(f"DEBUG_PRINT: Extrayendo etiqueta inteligente para #{issue_number}")
             ai_labels = generate_issue_label(title, body)
             if ai_labels:
-                print(f"DEBUG_PRINT: IA sugirió las etiquetas silenciosas: {ai_labels}")
                 client.repo.get_issue(issue_number).add_to_labels(*ai_labels)
-            else:
-                print("DEBUG_PRINT: No se pudo generar etiqueta.")
-
     elif EVENT_NAME == "issue_comment":
-        print(f"DEBUG_PRINT: Event parsed as issue_comment payload.")
         if "issue" in event and "comment" in event:
             issue_number = event["issue"]["number"]
             issue_obj = client.repo.get_issue(issue_number)
             trigger_text = event["comment"]["body"]
             
-            print(f"DEBUG_PRINT: Pushing to process_issue(). trigger_text={trigger_text}")
             process_issue(issue_obj, trigger_text=trigger_text)
             
     elif EVENT_NAME == "discussion" or EVENT_NAME == "discussion_comment":
-        print(f"DEBUG_PRINT: Event parsed as Discussion payload.")
         if "discussion" in event:
             discussion = event["discussion"]
             
@@ -201,11 +189,9 @@ def main():
                 # as the GraphQL query, but for mentions this won't matter because we just comment right away.
                 # Delay checks run via schedule anyway!
             }
-            print(f"DEBUG_PRINT: Pushing to process_discussion(). trigger_text={trigger_text}")
             process_discussion(discussion_node, trigger_text=trigger_text)
     
     elif EVENT_NAME == "schedule" or not EVENT_NAME:
-        print(f"DEBUG_PRINT: Event parsed as Cron Schedule.")
         # Sweep issues
         for issue in client.get_open_issues():
             process_issue(issue)

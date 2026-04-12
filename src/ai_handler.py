@@ -5,7 +5,6 @@ from google.genai import types
 def get_repo_context():
     """Reads the repository's README.md to provide real context to the AI."""
     workspace = os.getenv("GITHUB_WORKSPACE", ".")
-    print(f"DEBUG_PRINT_LOCAL: GITHUB_WORKSPACE es = {workspace}")
     
     for possible_name in ["README.md", "readme.md", "README.txt", "Readme.md"]:
         path = os.path.join(workspace, possible_name)
@@ -13,13 +12,10 @@ def get_repo_context():
             try:
                 with open(path, "r", encoding="utf-8") as f:
                     content = f.read()
-                    print(f"DEBUG_PRINT_LOCAL: RAG EXITOSO. Se leyó y cargó el archivo {possible_name} ({len(content)} caracteres).")
                     return content[:15000]
             except Exception as e:
-                print(f"DEBUG_PRINT_LOCAL: Fallo al leer {path}: {str(e)}")
                 continue
                 
-    print("DEBUG_PRINT_LOCAL: FALLO RAG. No se encontró ningún README en el directorio del workspace.")
     return ""
 
 def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en", user_comment=None, is_direct=False):
@@ -34,14 +30,14 @@ def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en", user
             if is_direct:
                 return f"🤖 **Asistente**: He leído tu comentario. Pero sin `AI_API_KEY` configurada, no puedo responder preguntas complejas."
             return f"""
-🤖 **Análisis de Asistente**:
-He analizado el título y parece que tu problema trata sobre: *"{issue_title}"*.
+🤖 **Assistant Analysis**:
+I've analyzed the title and it seems your problem is about: *"{issue_title}"*.
 
-Como todavía no has configurado una `AI_API_KEY`, no puedo darte una solución técnica exacta, pero mi lógica interna sugiere:
-1. Revisa si hay errores similares en la documentación.
-2. Asegúrate de que el entorno sea el correcto.
+Since you haven't configured an `AI_API_KEY` yet, I cannot provide an exact technical solution, but my internal logic suggests:
+1. Check if there are similar errors in the documentation.
+2. Ensure the environment is correct.
 
-_(Configura el secreto `AI_API_KEY` con una key de Google Gemini para obtener respuestas inteligentes reales)_
+_(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart responses)_
 """
         else:
             if is_direct:
@@ -107,13 +103,13 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
             """
         
         models_to_try = [
-            # Prioridad 1: 500 gratuitas de Gemini 3.1 Flash Lite Preview
+            # Priority 1: 500 free daily calls of Gemini 3.1 Flash Lite Preview
             'gemini-3.1-flash-lite-preview',
-            # Prioridad 2: 1500 gratuitas de Gemini 2.0 Flash
+            # Priority 2: 1500 free daily calls of Gemini 2.0 Flash
             'gemini-2.0-flash',
-            # Prioridad 3: 1500 gratuitas de Gemini 2.0 Flash Lite
+            # Priority 3: 1500 free daily calls of Gemini 2.0 Flash Lite
             'gemini-2.0-flash-lite',
-            # Prioridad 4: Respaldo extra
+            # Priority 4: Fallback
             'gemini-flash-latest'
         ]
         
@@ -132,9 +128,9 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
                 last_error = e
                 continue
                 
-        # Si llegó aquí es porque falló todo
+        # If it reached here, all models failed
         if not is_direct:
-            # En sweep (cron), si falla la IA, mejor abortar silenciosamente para no spamear errores a todos los issues viejos
+            # On cron sweep tasks, if AI fails, abort silently to avoid spamming errors on old issues
             return None
             
         error_msg = "No pude generar una respuesta" if lang_code == "es" else "Could not generate a response"
@@ -178,7 +174,6 @@ Return ONLY a comma-separated list of the chosen labels (e.g. "bug, documentatio
     
     for model_name in models_to_try:
         try:
-            print(f"DEBUG_PRINT_LOCAL: Intentando modelo {model_name} para la etiqueta...")
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt,
@@ -187,7 +182,6 @@ Return ONLY a comma-separated list of the chosen labels (e.g. "bug, documentatio
                 )
             )
             
-            print(f"DEBUG_PRINT_LOCAL: Gemini respondió en crudo: {repr(response.text)}")
             
             raw_response = response.text.strip().lower()
             valid_labels = ["bug", "enhancement", "question", "help wanted", "documentation", "good first issue"]
@@ -199,12 +193,9 @@ Return ONLY a comma-separated list of the chosen labels (e.g. "bug, documentatio
                     
             if chosen_labels:
                 return chosen_labels
-            print(f"DEBUG_PRINT_LOCAL: El texto no contenía ninguna de las etiquetas válidas.")
             return None
             
         except Exception as e:
-            print(f"DEBUG_PRINT_LOCAL: El modelo {model_name} falló con error: {str(e)}")
             continue
             
-    print("DEBUG_PRINT_LOCAL: Se intentaron todos los modelos y fallaron todos.")
     return None

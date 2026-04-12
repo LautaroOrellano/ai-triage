@@ -1,5 +1,6 @@
 import os
 from google import genai
+from google.genai import types
 
 def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en", user_comment=None, is_direct=False):
     """

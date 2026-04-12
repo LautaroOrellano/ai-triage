@@ -119,7 +119,7 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
 
 def generate_issue_label(title, body):
     """
-    Analyzes an issue's title and body and returns a single category label.
+    Analyzes an issue's title and body and returns a list of category labels.
     Used for silent auto-labeling without spamming comments.
     """
     api_key = os.getenv("AI_API_KEY")
@@ -129,16 +129,18 @@ def generate_issue_label(title, body):
     client = genai.Client(api_key=api_key)
     
     prompt = f"""
-Analyze the following GitHub issue and categorize it into EXACTLY ONE of these labels:
+Analyze the following GitHub issue and categorize it by selecting UP TO 5 applicable labels from the following list:
 - bug
 - enhancement
 - question
 - help wanted
+- documentation
+- good first issue
 
 Issue Title: {title}
 Issue Body: {body}
 
-Return ONLY the label name in lowercase, with no extra text, markdown, or punctuation.
+Return ONLY a comma-separated list of the chosen labels (e.g. "bug, documentation"). Do not include any extra text, markdown, or punctuation.
 """
     models_to_try = [
         'gemini-3.1-flash-lite-preview',
@@ -154,19 +156,22 @@ Return ONLY the label name in lowercase, with no extra text, markdown, or punctu
                 model=model_name,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.1,  # Low temperature for strict classification
+                    temperature=0.1,  # Low temperature
                 )
             )
             
-            # Print de la respuesta cruda de Gemini para depurar
             print(f"DEBUG_PRINT_LOCAL: Gemini respondió en crudo: {repr(response.text)}")
             
-            label = response.text.strip().lower()
-            valid_labels = ["bug", "enhancement", "question", "help wanted"]
+            raw_response = response.text.strip().lower()
+            valid_labels = ["bug", "enhancement", "question", "help wanted", "documentation", "good first issue"]
             
+            chosen_labels = []
             for valid in valid_labels:
-                if valid in label:
-                    return valid
+                if valid in raw_response:
+                    chosen_labels.append(valid)
+                    
+            if chosen_labels:
+                return chosen_labels
             print(f"DEBUG_PRINT_LOCAL: El texto no contenía ninguna de las etiquetas válidas.")
             return None
             

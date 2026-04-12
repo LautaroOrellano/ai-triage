@@ -165,10 +165,10 @@ def main():
             title = event["issue"].get("title", "")
             body = event["issue"].get("body", "")
             print(f"DEBUG_PRINT: Extrayendo etiqueta inteligente para #{issue_number}")
-            ai_label = generate_issue_label(title, body)
-            if ai_label:
-                print(f"DEBUG_PRINT: IA sugirió la etiqueta silenciosa: {ai_label}")
-                client.repo.get_issue(issue_number).add_to_labels(ai_label)
+            ai_labels = generate_issue_label(title, body)
+            if ai_labels:
+                print(f"DEBUG_PRINT: IA sugirió las etiquetas silenciosas: {ai_labels}")
+                client.repo.get_issue(issue_number).add_to_labels(*ai_labels)
             else:
                 print("DEBUG_PRINT: No se pudo generar etiqueta.")
 

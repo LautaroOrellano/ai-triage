@@ -148,6 +148,7 @@ Return ONLY the label name in lowercase, with no extra text, markdown, or punctu
     
     for model_name in models_to_try:
         try:
+            print(f"DEBUG_PRINT_LOCAL: Intentando modelo {model_name} para la etiqueta...")
             response = client.models.generate_content(
                 model=model_name,
                 contents=prompt,
@@ -156,15 +157,21 @@ Return ONLY the label name in lowercase, with no extra text, markdown, or punctu
                 )
             )
             
+            # Print de la respuesta cruda de Gemini para depurar
+            print(f"DEBUG_PRINT_LOCAL: Gemini respondió en crudo: {repr(response.text)}")
+            
             label = response.text.strip().lower()
             valid_labels = ["bug", "enhancement", "question", "help wanted"]
             
             for valid in valid_labels:
                 if valid in label:
                     return valid
+            print(f"DEBUG_PRINT_LOCAL: El texto no contenía ninguna de las etiquetas válidas.")
             return None
             
         except Exception as e:
+            print(f"DEBUG_PRINT_LOCAL: El modelo {model_name} falló con error: {str(e)}")
             continue
             
+    print("DEBUG_PRINT_LOCAL: Se intentaron todos los modelos y fallaron todos.")
     return None

@@ -69,3 +69,7 @@ jobs:
 1. **Silent Phase**: When an issue is opened, the action silently categorizes the text and applies native GitHub labels dynamically via API without posting any comments. 
 2. **Mentoring Phase**: If an issue is left abandoned for longer than `delay-minutes`, the cron job sweeps the repository, detects the inactivity, reads your root README repository context, and generates an educated response aiming to mentor the user, often requesting logs or environment details to speed up human resolution.
 3. **Conversational Phase**: If a user mentions the bot by its configured `bot-name` (e.g. `@helperbot please verify the docs`), it bypasses regular queues and cron schedules, providing an immediate technical response based on the repository documentation.
+
+## License
+
+This project is open-source and is licensed under the [MIT License](LICENSE).

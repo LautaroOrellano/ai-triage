@@ -2,6 +2,26 @@ import os
 from google import genai
 from google.genai import types
 
+def get_repo_context():
+    """Reads the repository's README.md to provide real context to the AI."""
+    workspace = os.getenv("GITHUB_WORKSPACE", ".")
+    print(f"DEBUG_PRINT_LOCAL: GITHUB_WORKSPACE es = {workspace}")
+    
+    for possible_name in ["README.md", "readme.md", "README.txt", "Readme.md"]:
+        path = os.path.join(workspace, possible_name)
+        if os.path.exists(path):
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    content = f.read()
+                    print(f"DEBUG_PRINT_LOCAL: RAG EXITOSO. Se leyó y cargó el archivo {possible_name} ({len(content)} caracteres).")
+                    return content[:15000]
+            except Exception as e:
+                print(f"DEBUG_PRINT_LOCAL: Fallo al leer {path}: {str(e)}")
+                continue
+                
+    print("DEBUG_PRINT_LOCAL: FALLO RAG. No se encontró ningún README en el directorio del workspace.")
+    return ""
+
 def generate_ai_response(issue_title, issue_body, bot_name, lang_code="en", user_comment=None, is_direct=False):
     """
     Generates a response using Google Gemini AI if the API key is available.
@@ -43,6 +63,11 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
         
         language_name = "Spanish" if lang_code == "es" else "English"
         
+        repo_context = get_repo_context()
+        context_block = ""
+        if repo_context:
+            context_block = f"\n\n--- OFFICIAL REPOSITORY DOCUMENTATION (README) ---\n{repo_context}\n----------------------------------------------------\nIMPORTANT: Use the documentation above as your absolute source of truth. If the user asks something covered in the README, quote it. If the documentation contradicts their assumed generic names (like 'ProjectA'), correct them gently using the real project name and config from the documentation above."
+        
         if is_direct and user_comment:
             prompt = f"""
             You are an open source maintainer assistant named {bot_name}.
@@ -51,6 +76,7 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
             Context of the Issue:
             Title: {issue_title}
             Body: {issue_body}
+            {context_block}
             
             User's Comment to you:
             "{user_comment}"
@@ -69,6 +95,7 @@ _(Configure the `AI_API_KEY` secret with a Google Gemini key to get real smart r
             
             Issue Title: {issue_title}
             Issue Body: {issue_body}
+            {context_block}
             
             Instructions:
             1. Respond in {language_name}.

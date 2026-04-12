@@ -1,7 +1,9 @@
 name: "Discussion Helper Bot"
 description: "Auto-responds to GitHub issues with delay, mentions and smart AI filtering"
 author: "Antigravity & User"
-
+branding:
+  icon: 'message-circle'
+  color: 'blue'
 inputs:
   github-token:
     description: "GitHub token (needs write permissions on issues)"

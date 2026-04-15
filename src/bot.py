@@ -59,7 +59,8 @@ def process_issue(issue_obj, trigger_text=None):
     text_to_check = trigger_text if trigger_text else body
 
     # Trigger 1: Direct Mention (Prioritized)
-    if was_mentioned(text_to_check, BOT_NAME):
+    # Never process mentions during a scheduled sweep
+    if EVENT_NAME and EVENT_NAME != "schedule" and was_mentioned(text_to_check, BOT_NAME):
         response = format_response(title, body, direct=True, user_comment=text_to_check)
         if response:
             client.comment(issue_number, response)
@@ -127,8 +128,8 @@ def process_discussion(discussion_node, trigger_text=None):
     
     text_to_check = trigger_text if trigger_text else body
 
-    # Mention trigger
-    if was_mentioned(text_to_check, BOT_NAME):
+    # Mention trigger (Block schedule from re-triggering)
+    if EVENT_NAME and EVENT_NAME != "schedule" and was_mentioned(text_to_check, BOT_NAME):
         response = format_response(title, body, direct=True, user_comment=text_to_check)
         if response:
             client.comment_discussion(node_id, response)
@@ -165,7 +166,8 @@ def process_pr(pr_obj, trigger_text=None):
     
     text_to_check = trigger_text if trigger_text else body
 
-    if was_mentioned(text_to_check, BOT_NAME):
+    # Mention trigger
+    if EVENT_NAME and EVENT_NAME != "schedule" and was_mentioned(text_to_check, BOT_NAME):
         response = format_response(title, body, direct=True, user_comment=text_to_check)
         if response:
             client.comment_pr(pr_number, response)

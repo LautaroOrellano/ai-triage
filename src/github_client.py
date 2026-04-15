@@ -39,9 +39,12 @@ class GitHubClient:
             return "github-actions[bot]"
 
     def already_commented(self, issue_number):
-        bot_user = self.get_bot_username()
+        bot_user = self.get_bot_username().lower()
         comments = self.get_comments(issue_number)
-        return any(c.user.login == bot_user for c in comments)
+        return any(
+            (c.user.login or "").lower() in [bot_user, "github-actions[bot]", "github-actions"]
+            for c in comments
+        )
 
     def comment(self, issue_number, message):
         issue = self.repo.get_issue(issue_number)

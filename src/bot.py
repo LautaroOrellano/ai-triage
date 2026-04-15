@@ -1,8 +1,8 @@
 import os
 import json
 from github_client import GitHubClient
-from utils import should_respond, was_mentioned, check_missing_info
-from ai_handler import generate_ai_response, generate_issue_label
+from utils import should_respond, was_mentioned, check_missing_info, is_stale_zombie
+from ai_handler import generate_ai_response, generate_issue_label, detect_duplicate_issue
 
 TOKEN = os.getenv("GITHUB_TOKEN")
 DELAY = int(os.getenv("DELAY_MINUTES", "30"))
@@ -26,7 +26,9 @@ LOCALIZATION = {
             "logs": "code blocks or logs",
             "details": "detailed explanation",
             "description": "description of the issue"
-        }
+        },
+        "duplicate": "🛡️ **Duplicate Detected!** It seems this topic is already being discussed in #{duplicate_number}.",
+        "zombie_close": "😴 **Auto-Closing due to inactivity.** This issue has been inactive for more than 2 years. Please open a new issue if this is still relevant."
     },
     "es": {
         "welcome": "👋 ¡Hola! Soy **{bot_name}**",
@@ -39,7 +41,9 @@ LOCALIZATION = {
             "logs": "bloques de código o registros (logs)",
             "details": "explicación detallada",
             "description": "descripción del problema"
-        }
+        },
+        "duplicate": "🛡️ **¡Duplicado Detectado!** Parece que este tema ya se está discutiendo en el issue #{duplicate_number}.",
+        "zombie_close": "😴 **Cierre automático por inactividad.** Este issue ha estado inactivo por más de 2 años. Por favor, abre uno nuevo si el problema persiste."
     }
 }
 
@@ -57,6 +61,15 @@ def process_issue(issue_obj, trigger_text=None):
     
     # Text to check for mentions (can be the comment body or issue body)
     text_to_check = trigger_text if trigger_text else body
+
+    # --- ZOMBIE AUTO-CLOSE (v1.3.0 Feature) ---
+    if EVENT_NAME == "schedule" or not EVENT_NAME:
+        if is_stale_zombie(issue_obj.updated_at):
+            lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
+            client.comment(issue_number, LOCALIZATION[lang_code]["zombie_close"])
+            client.close_issue(issue_number)
+            return
+    # ------------------------------------------
 
     # Trigger 1: Direct Mention (Prioritized)
     # Never process mentions during a scheduled sweep
@@ -128,6 +141,16 @@ def process_discussion(discussion_node, trigger_text=None):
     
     text_to_check = trigger_text if trigger_text else body
 
+    # --- ZOMBIE AUTO-CLOSE (v1.3.0 Feature) ---
+    if EVENT_NAME == "schedule" or not EVENT_NAME:
+        last_activity = discussion_node.get("updatedAt", created_at)
+        if is_stale_zombie(last_activity):
+            lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
+            client.comment_discussion(node_id, LOCALIZATION[lang_code]["zombie_close"])
+            client.close_discussion(node_id)
+            return
+    # ------------------------------------------
+
     # Mention trigger (Block schedule from re-triggering)
     if EVENT_NAME and EVENT_NAME != "schedule" and was_mentioned(text_to_check, BOT_NAME):
         response = format_response(title, body, direct=True, user_comment=text_to_check)
@@ -166,6 +189,17 @@ def process_pr(pr_obj, trigger_text=None):
     
     text_to_check = trigger_text if trigger_text else body
 
+    # --- ZOMBIE AUTO-CLOSE (v1.3.0 Feature) ---
+    if EVENT_NAME == "schedule" or not EVENT_NAME:
+        if is_stale_zombie(pr_obj.updated_at):
+            lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
+            client.comment_pr(pr_number, LOCALIZATION[lang_code]["zombie_close"])
+            # We don't necessarily close PRs automatically by default in common workflows, 
+            # but the user asked for "issues inactivas", I'll include PRs as well for consistency.
+            pr_obj.edit(state='closed')
+            return
+    # ------------------------------------------
+
     # Mention trigger
     if EVENT_NAME and EVENT_NAME != "schedule" and was_mentioned(text_to_check, BOT_NAME):
         response = format_response(title, body, direct=True, user_comment=text_to_check)
@@ -198,6 +232,17 @@ def main():
             issue_number = event["issue"]["number"]
             title = event["issue"].get("title", "")
             body = event["issue"].get("body", "")
+            
+            # --- DUPLICATE DETECTION (v1.3.0 Feature) ---
+            recent = client.get_recent_issue_titles(issue_number)
+            duplicate_num = detect_duplicate_issue(title, body, recent)
+            if duplicate_num:
+                lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
+                msg = LOCALIZATION[lang_code]["duplicate"].format(duplicate_number=duplicate_num)
+                client.comment(issue_number, msg)
+                client.add_label(issue_number, "duplicate")
+            # --------------------------------------------
+
             ai_labels = generate_issue_label(title, body)
             if ai_labels:
                 client.repo.get_issue(issue_number).add_to_labels(*ai_labels)

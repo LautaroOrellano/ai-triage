@@ -34,7 +34,9 @@ on:
   discussion_comment: 
     types: [created]
   pull_request:         
-    types: [opened, reopened]      
+    types: [opened, reopened]
+  pull_request_review_comment:
+    types: [created]     
   schedule:
     - cron: '0 */3 * * *' # Sweeps for unanswered issues every 3 hours
 

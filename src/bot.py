@@ -11,6 +11,7 @@ EVENT_PATH = os.getenv("GITHUB_EVENT_PATH")
 EVENT_NAME = os.getenv("GITHUB_EVENT_NAME")
 LANGUAGE = os.getenv("LANGUAGE", "en").lower()
 LABEL_NAME = "bot-responded"
+AUTO_CLOSE_STALE = os.getenv("AUTO_CLOSE_STALE", "false").lower() == "true"
 
 client = GitHubClient(TOKEN)
 
@@ -63,7 +64,7 @@ def process_issue(issue_obj, trigger_text=None):
     text_to_check = trigger_text if trigger_text else body
 
     # --- ZOMBIE AUTO-CLOSE (v1.3.0 Feature) ---
-    if EVENT_NAME == "schedule" or not EVENT_NAME:
+    if AUTO_CLOSE_STALE and (EVENT_NAME == "schedule" or not EVENT_NAME):
         if is_stale_zombie(issue_obj.updated_at):
             lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
             client.comment(issue_number, LOCALIZATION[lang_code]["zombie_close"])
@@ -142,7 +143,7 @@ def process_discussion(discussion_node, trigger_text=None):
     text_to_check = trigger_text if trigger_text else body
 
     # --- ZOMBIE AUTO-CLOSE (v1.3.0 Feature) ---
-    if EVENT_NAME == "schedule" or not EVENT_NAME:
+    if AUTO_CLOSE_STALE and (EVENT_NAME == "schedule" or not EVENT_NAME):
         last_activity = discussion_node.get("updatedAt", created_at)
         if is_stale_zombie(last_activity):
             lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
@@ -190,7 +191,7 @@ def process_pr(pr_obj, trigger_text=None):
     text_to_check = trigger_text if trigger_text else body
 
     # --- ZOMBIE AUTO-CLOSE (v1.3.0 Feature) ---
-    if EVENT_NAME == "schedule" or not EVENT_NAME:
+    if AUTO_CLOSE_STALE and (EVENT_NAME == "schedule" or not EVENT_NAME):
         if is_stale_zombie(pr_obj.updated_at):
             lang_code = LANGUAGE if LANGUAGE in LOCALIZATION else "en"
             client.comment_pr(pr_number, LOCALIZATION[lang_code]["zombie_close"])

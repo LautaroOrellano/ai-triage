@@ -140,9 +140,14 @@ def process_discussion(discussion_node, trigger_text=None):
     if LABEL_NAME in labels:
         return
         
-    bot_user = client.get_bot_username()
+    bot_user = client.get_bot_username().lower()
     comments = [c for c in discussion_node.get("comments", {}).get("nodes", [])]
-    already_commented = any(c.get("author", {}).get("login") == bot_user for c in comments)
+    
+    # Improved check: matches current bot name OR the official github-actions bot login
+    already_commented = any(
+        (c.get("author", {}).get("login") or "").lower() in [bot_user, "github-actions[bot]", "github-actions"] 
+        for c in comments
+    )
     if already_commented:
         return
 
@@ -152,10 +157,41 @@ def process_discussion(discussion_node, trigger_text=None):
             client.comment_discussion(node_id, response)
             client.add_label_to_node(node_id, LABEL_NAME)
 
+def process_pr(pr_obj, trigger_text=None):
+    """Core logic to decide if the bot should reply to a specific PR."""
+    pr_number = pr_obj.number
+    body = pr_obj.body or ""
+    title = pr_obj.title
+    
+    text_to_check = trigger_text if trigger_text else body
+
+    if was_mentioned(text_to_check, BOT_NAME):
+        response = format_response(title, body, direct=True, user_comment=text_to_check)
+        if response:
+            client.comment_pr(pr_number, response)
+            client.add_label(pr_number, LABEL_NAME)
+        return
+
+    if client.has_label(pr_number, LABEL_NAME) or client.already_commented(pr_number):
+        return
+
+    comments = client.get_comments(pr_number)
+    if should_respond(str(pr_obj.created_at), comments, DELAY):
+        response = format_response(title, body)
+        if response:
+            client.comment_pr(pr_number, response)
+            client.add_label(pr_number, LABEL_NAME)
+
 def main():
     event = load_event()
 
-    if EVENT_NAME == "issues":
+    if EVENT_NAME == "pull_request":
+        if "pull_request" in event and event.get("action") in ["opened", "reopened"]:
+            pr_obj = client.repo.get_pull(event["pull_request"]["number"])
+            process_pr(pr_obj)
+
+    elif EVENT_NAME == "issues":
+
         if "issue" in event and event.get("action") == "opened":
             issue_number = event["issue"]["number"]
             title = event["issue"].get("title", "")
@@ -198,6 +234,10 @@ def main():
         # Sweep discussions
         for discussion_node in client.get_open_discussions():
             process_discussion(discussion_node)
+        # Sweep pull requests
+        for pr in client.get_open_pull_requests():
+            process_pr(pr)
+
 
 if __name__ == "__main__":
     main()

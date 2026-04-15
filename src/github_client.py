@@ -117,7 +117,10 @@ class GitHubClient:
                 body
                 createdAt
                 comments(first: 50) {
-                  nodes { author { login } }
+                  nodes { 
+                    createdAt
+                    author { login } 
+                  }
                 }
                 labels(first: 20) {
                   nodes { name }
@@ -132,4 +135,11 @@ class GitHubClient:
             return res["data"]["repository"]["discussions"]["nodes"]
         except:
             return []
+
+    def get_open_pull_requests(self):
+        return self.repo.get_pulls(state='open')
+
+    def comment_pr(self, pr_number, message):
+        pr = self.repo.get_pull(pr_number)
+        pr.create_issue_comment(message)
 

@@ -12,6 +12,20 @@ class GitHubClient:
     def get_open_issues(self):
         return self.repo.get_issues(state='open')
 
+    def get_recent_issue_titles(self, current_issue_number, limit=20):
+        """Returns a list of (number, title) for recent open issues, excluding the current one."""
+        issues = self.repo.get_issues(state='open', sort='created', direction='desc')
+        titles = []
+        count = 0
+        for issue in issues:
+            if issue.number == current_issue_number:
+                continue
+            titles.append({"number": issue.number, "title": issue.title})
+            count += 1
+            if count >= limit:
+                break
+        return titles
+
     def add_label(self, issue_number, label_name):
         # Create label if it doesn't exist
         try:
@@ -39,9 +53,12 @@ class GitHubClient:
             return "github-actions[bot]"
 
     def already_commented(self, issue_number):
-        bot_user = self.get_bot_username()
+        bot_user = self.get_bot_username().lower()
         comments = self.get_comments(issue_number)
-        return any(c.user.login == bot_user for c in comments)
+        return any(
+            (c.user.login or "").lower() in [bot_user, "github-actions[bot]", "github-actions"]
+            for c in comments
+        )
 
     def comment(self, issue_number, message):
         issue = self.repo.get_issue(issue_number)
@@ -116,8 +133,12 @@ class GitHubClient:
                 title
                 body
                 createdAt
+                updatedAt
                 comments(first: 50) {
-                  nodes { author { login } }
+                  nodes { 
+                    createdAt
+                    author { login } 
+                  }
                 }
                 labels(first: 20) {
                   nodes { name }
@@ -132,4 +153,25 @@ class GitHubClient:
             return res["data"]["repository"]["discussions"]["nodes"]
         except:
             return []
+
+    def get_open_pull_requests(self):
+        return self.repo.get_pulls(state='open')
+
+    def comment_pr(self, pr_number, message):
+        pr = self.repo.get_pull(pr_number)
+        pr.create_issue_comment(message)
+
+    def close_issue(self, issue_number):
+        issue = self.repo.get_issue(issue_number)
+        issue.edit(state='closed')
+
+    def close_discussion(self, node_id):
+        query = """
+        mutation($id: ID!) {
+          closeDiscussion(input: {discussionId: $id}) {
+            clientMutationId
+          }
+        }
+        """
+        self.graphql_query(query, {"id": node_id})
 

@@ -26,6 +26,11 @@ inputs:
     required: false
     default: "en"
 
+  auto-close-stale:
+    description: "Set to 'true' to enable auto-closing issues older than 2 years during this run"
+    required: false
+    default: "false"
+
 runs:
   using: "composite"
   steps:
@@ -48,6 +53,7 @@ runs:
         GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_EVENT_NAME: ${{ github.event_name }}
         GITHUB_EVENT_PATH: ${{ github.event_path }}
+        AUTO_CLOSE_STALE: ${{ inputs.auto-close-stale }}
 
 branding:
   icon: "message-square"

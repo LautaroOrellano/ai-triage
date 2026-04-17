@@ -12,6 +12,20 @@ class GitHubClient:
     def get_open_issues(self):
         return self.repo.get_issues(state='open')
 
+    def get_recent_issue_titles(self, current_issue_number, limit=20):
+        """Returns a list of (number, title) for recent open issues, excluding the current one."""
+        issues = self.repo.get_issues(state='open', sort='created', direction='desc')
+        titles = []
+        count = 0
+        for issue in issues:
+            if issue.number == current_issue_number:
+                continue
+            titles.append({"number": issue.number, "title": issue.title})
+            count += 1
+            if count >= limit:
+                break
+        return titles
+
     def add_label(self, issue_number, label_name):
         # Create label if it doesn't exist
         try:
@@ -119,6 +133,7 @@ class GitHubClient:
                 title
                 body
                 createdAt
+                updatedAt
                 comments(first: 50) {
                   nodes { 
                     createdAt
@@ -145,4 +160,18 @@ class GitHubClient:
     def comment_pr(self, pr_number, message):
         pr = self.repo.get_pull(pr_number)
         pr.create_issue_comment(message)
+
+    def close_issue(self, issue_number):
+        issue = self.repo.get_issue(issue_number)
+        issue.edit(state='closed')
+
+    def close_discussion(self, node_id):
+        query = """
+        mutation($id: ID!) {
+          closeDiscussion(input: {discussionId: $id}) {
+            clientMutationId
+          }
+        }
+        """
+        self.graphql_query(query, {"id": node_id})
 

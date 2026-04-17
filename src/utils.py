@@ -61,4 +61,19 @@ def check_missing_info(issue_body):
     if len(issue_body) < 50:
         missing.append("details")
         
-    return missing
+    return missing
+
+def is_stale_zombie(last_updated_at, years=2):
+    """Checks if an issue has been inactive for more than X years."""
+    now = datetime.now(timezone.utc)
+    
+    # Handle both datetime objects and ISO strings
+    if isinstance(last_updated_at, str):
+        last_time = datetime.fromisoformat(last_updated_at.replace("Z", "+00:00"))
+    else:
+        last_time = last_updated_at
+        if last_time.tzinfo is None:
+            last_time = last_time.replace(tzinfo=timezone.utc)
+            
+    diff_days = (now - last_time).days
+    return diff_days > (years * 365)

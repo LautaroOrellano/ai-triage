@@ -199,3 +199,57 @@ Return ONLY a comma-separated list of the chosen labels (e.g. "bug, documentatio
             continue
             
     return None
+
+def detect_duplicate_issue(new_title, new_body, recent_issues):
+    """
+    Uses Gemini to compare a new issue against recent ones to find potential duplicates.
+    Returns the issue number if a duplicate is found, otherwise None.
+    """
+    api_key = os.getenv("AI_API_KEY")
+    if not api_key or not recent_issues:
+        return None
+        
+    client = genai.Client(api_key=api_key)
+    
+    issues_list_str = "\n".join([f"- #{i['number']}: {i['title']}" for i in recent_issues])
+    
+    prompt = f"""
+You are a GitHub maintainer assistant. Your task is to check if the new issue below is a duplicate of any of the recently opened issues.
+
+--- NEW ISSUE ---
+Title: {new_title}
+Body: {new_body}
+
+--- RECENT ISSUES LIST ---
+{issues_list_str}
+
+Instructions:
+1. Compare the new issue's meaning and goal against the recent issues list.
+2. If it is a clear duplicate, return ONLY the issue number (e.g., "123").
+3. If it's NOT a duplicate or you are unsure, return exactly: "NONE".
+
+Response:
+"""
+    models_to_try = ['gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-flash-latest']
+    
+    for model_name in models_to_try:
+        try:
+            response = client.models.generate_content(
+                model=model_name,
+                contents=prompt,
+                config=types.GenerateContentConfig(temperature=0.1)
+            )
+            resp_text = response.text.strip().upper()
+            if "NONE" in resp_text:
+                return None
+            
+            # Extract number from response
+            import re
+            match = re.search(r'\d+', resp_text)
+            if match:
+                return int(match.group())
+            return None
+        except Exception:
+            continue
+            
+    return None

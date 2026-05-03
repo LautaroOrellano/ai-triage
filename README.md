@@ -5,10 +5,12 @@ A professional, context-aware GitHub Action that acts as an intelligent maintain
 ## Key Features
 
 * **Context-Aware Responses (RAG)**: The bot dynamically reads your repository's root `README.md` before answering any issue. It aligns its answers strictly to your documentation, eliminating AI hallucinations and providing accurate, project-specific support.
-* **Conversational Mentions**: Users can mention the bot directly (e.g., `@helperbot`) in an issue or discussion comment to ask technical questions, and it will reply instantly. Custom bot names are fully supported.
-* **Silent Multi-Label Triage**: Automatically categorizes newly opened issues with up to 5 accurate labels (`bug`, `documentation`, `enhancement`, `question`, `good first issue`) without spamming the thread with generic comments.
-* **Anti-Spam & Delay Strategy**: Prevents community noise by only stepping in when human maintainers are unavailable. Configurable delays ensure the bot only relies to stale, unanswered issues.
-* **Zero Cost Architecture**: Programmed specifically to utilize Google's Generative AI Free Tier boundaries by prioritizing Gemini 3.1 Flash Lite and 2.0 Flash series models. This grants thousands of free, lightweight daily queries.
+* **AI Duplicate Detection**: Automatically identifies if a new issue is a duplicate of a recent one using semantic analysis. It links the related issues and applies the `duplicate` label to keep your repository organized.
+* **Conversational Mentions**: Users can mention the bot directly (e.g., `@helperbot`) in an issue, discussion, or pull request to ask technical questions, and it will reply instantly.
+* **Silent Multi-Label Triage**: Automatically categorizes newly opened issues with up to 5 accurate labels (`bug`, `documentation`, `enhancement`, etc.) without spamming the thread with generic comments.
+* **Zombie Auto-Close**: Keep your repository healthy by automatically closing stale issues, pull requests, and discussions that have been inactive for more than 2 years.
+* **Smart PR Silence**: Optimized for code review environments; the bot remains silent in Pull Requests unless explicitly mentioned, respecting developer workflows.
+* **Zero Cost Architecture**: Programmed specifically to utilize Google's Generative AI Free Tier boundaries by prioritizing Gemini Flash series models.
 * **Multi-Language Support**: Fully supports English (`en`) and Spanish (`es`) system contexts and fallback prompts.
 
 ## Setup & Installation
@@ -37,14 +39,16 @@ on:
     types: [opened, reopened]
   pull_request_review_comment:
     types: [created]     
+    
+  # TIME TRIGGERS
   schedule:
-    - cron: '0 */3 * * *' # Sweeps for unanswered issues every 3 hours
+    - cron: '0 */3 * * *'  # Standard Triage every 3 hours
+    - cron: '0 0 1 * *'    # Monthly Zombie Cleanup (1st day of the month)
 
 jobs:
-  triage:
+  ai-maintainer:
     runs-on: ubuntu-latest
     steps:
-      # REQUIRED: Checkout is necessary so the AI can read your README.md context
       - name: Checkout Code
         uses: actions/checkout@v4
 
@@ -56,6 +60,8 @@ jobs:
           delay-minutes: '180'
           bot-name: 'helperbot'
           language: 'en'
+          # Activates auto-close ONLY when triggered by the monthly cron
+          auto-close-stale: ${{ github.event.schedule == '0 0 1 * *' && 'true' || 'false' }}
 ```
 
 ## Inputs Configuration
@@ -67,12 +73,14 @@ jobs:
 | `delay-minutes` | Minutes to wait before the bot auto-responds to an abandoned issue | `180` | false |
 | `bot-name` | Custom name used for direct mentions (invocations) in strings | `helperbot` | false |
 | `language` | Interface fallback language. Supports `en` and `es` | `en` | false |
+| `auto-close-stale` | Set to `true` to close inactive issues/PRs/discussions older than 2 years | `false` | false |
 
 ## Architecture & Lifecycle
 
-1. **Silent Phase**: When an issue is opened, the action silently categorizes the text and applies native GitHub labels dynamically via API without posting any comments. 
-2. **Mentoring Phase**: If an issue is left abandoned for longer than `delay-minutes`, the cron job sweeps the repository, detects the inactivity, reads your root README repository context, and generates an educated response aiming to mentor the user, often requesting logs or environment details to speed up human resolution.
-3. **Conversational Phase**: If a user mentions the bot by its configured `bot-name` (e.g. `@helperbot please verify the docs`), it bypasses regular queues and cron schedules, providing an immediate technical response based on the repository documentation.
+1. **Silent Phase**: When an issue is opened, the action silently categorizes the text, detects potential duplicates, and applies labels dynamically via API without posting any spam comments. 
+2. **Mentoring Phase**: If an issue is left abandoned for longer than `delay-minutes`, the cron job sweeps the repository and generates an educated response based on your README context to mentor the user.
+3. **Conversational Phase**: Mentioning the bot (e.g. `@helperbot`) bypasses all queues, providing an immediate technical response across Issues, Discussions, and PRs.
+4. **Lifecycle Cleanup**: Once a month (or as configured), the bot performs a deep sweep to close "Zombie" threads inactive for more than 2 years, keeping your repository metrics clean.
 
 ## License
 

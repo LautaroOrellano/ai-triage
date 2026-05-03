@@ -249,7 +249,7 @@ Response:
             if match:
                 return int(match.group())
             return None
-        except:
+        except Exception:
             continue
             
     return None

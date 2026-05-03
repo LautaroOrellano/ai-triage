@@ -63,6 +63,11 @@ def process_issue(issue_obj, trigger_text=None):
     # Text to check for mentions (can be the comment body or issue body)
     text_to_check = trigger_text if trigger_text else body
 
+    # If this is technically a Pull Request, skip it here.
+    # PRs are handled by process_pr() to ensure they stay silent unless mentioned.
+    if issue_obj.pull_request is not None:
+        return
+
     # --- ZOMBIE AUTO-CLOSE (v1.3.0 Feature) ---
     if AUTO_CLOSE_STALE and (EVENT_NAME == "schedule" or not EVENT_NAME):
         if is_stale_zombie(issue_obj.updated_at):
@@ -208,16 +213,7 @@ def process_pr(pr_obj, trigger_text=None):
             client.comment_pr(pr_number, response)
             client.add_label(pr_number, LABEL_NAME)
         return
-
-    if client.has_label(pr_number, LABEL_NAME) or client.already_commented(pr_number):
-        return
-
-    comments = client.get_comments(pr_number)
-    if should_respond(str(pr_obj.created_at), comments, DELAY):
-        response = format_response(title, body)
-        if response:
-            client.comment_pr(pr_number, response)
-            client.add_label(pr_number, LABEL_NAME)
+    return
 
 def main():
     event = load_event()

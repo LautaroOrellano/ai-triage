@@ -255,7 +255,18 @@ def main():
             issue_obj = client.repo.get_issue(issue_number)
             trigger_text = event["comment"]["body"]
             
-            process_issue(issue_obj, trigger_text=trigger_text)
+            if issue_obj.pull_request is not None:
+                pr_obj = client.repo.get_pull(issue_number)
+                process_pr(pr_obj, trigger_text=trigger_text)
+            else:
+                process_issue(issue_obj, trigger_text=trigger_text)
+                
+    elif EVENT_NAME == "pull_request_review_comment":
+        if "pull_request" in event and "comment" in event and event.get("action") == "created":
+            pr_number = event["pull_request"]["number"]
+            pr_obj = client.repo.get_pull(pr_number)
+            trigger_text = event["comment"]["body"]
+            process_pr(pr_obj, trigger_text=trigger_text)
             
     elif EVENT_NAME == "discussion" or EVENT_NAME == "discussion_comment":
         if "discussion" in event:

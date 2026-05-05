@@ -221,7 +221,8 @@ def main():
     if EVENT_NAME == "pull_request":
         if "pull_request" in event and event.get("action") in ["opened", "reopened"]:
             pr_obj = client.repo.get_pull(event["pull_request"]["number"])
-            process_pr(pr_obj)
+            trigger_text = event["pull_request"].get("body", "")
+            process_pr(pr_obj, trigger_text=trigger_text)
 
     elif EVENT_NAME == "issues":
 
@@ -243,8 +244,13 @@ def main():
             ai_labels = generate_issue_label(title, body)
             if ai_labels:
                 client.repo.get_issue(issue_number).add_to_labels(*ai_labels)
+                
+            # Handle mentions in issue body
+            issue_obj = client.repo.get_issue(issue_number)
+            process_issue(issue_obj, trigger_text=body)
+            
     elif EVENT_NAME == "issue_comment":
-        if "issue" in event and "comment" in event:
+        if "issue" in event and "comment" in event and event.get("action") == "created":
             issue_number = event["issue"]["number"]
             issue_obj = client.repo.get_issue(issue_number)
             trigger_text = event["comment"]["body"]
@@ -253,23 +259,28 @@ def main():
             
     elif EVENT_NAME == "discussion" or EVENT_NAME == "discussion_comment":
         if "discussion" in event:
-            discussion = event["discussion"]
-            
-            trigger_text = None
-            if "comment" in event:
-                trigger_text = event["comment"]["body"]
+            action = event.get("action")
+            if EVENT_NAME == "discussion_comment" and action != "created":
+                pass
+            elif EVENT_NAME == "discussion" and action not in ["created", "opened"]:
+                pass
+            else:
+                discussion = event["discussion"]
                 
-            # Quick format matching the GraphQL node schema
-            discussion_node = {
-                "id": discussion["node_id"],
-                "title": discussion.get("title", ""),
-                "body": discussion.get("body", ""),
-                "createdAt": discussion.get("created_at", ""),
-                # In a webhook, comments and labels are not usually fully provided in the same structure 
-                # as the GraphQL query, but for mentions this won't matter because we just comment right away.
-                # Delay checks run via schedule anyway!
-            }
-            process_discussion(discussion_node, trigger_text=trigger_text)
+                trigger_text = None
+                if "comment" in event:
+                    trigger_text = event["comment"]["body"]
+                elif EVENT_NAME == "discussion":
+                    trigger_text = discussion.get("body", "")
+                    
+                # Quick format matching the GraphQL node schema
+                discussion_node = {
+                    "id": discussion["node_id"],
+                    "title": discussion.get("title", ""),
+                    "body": discussion.get("body", ""),
+                    "createdAt": discussion.get("created_at", ""),
+                }
+                process_discussion(discussion_node, trigger_text=trigger_text)
     
     elif EVENT_NAME == "schedule" or not EVENT_NAME:
         # Sweep issues
